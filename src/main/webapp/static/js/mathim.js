@@ -39,7 +39,7 @@ function texify(tex)
     return "";
   } else {
     // escape single quotes with slash since embedding it into html
-    var mathmlTag = '<script type="math/tex">' + tex + '</script>'
+    var mathmlTag = '<script type="math/tex">' + tex + '</script>';
     return mathmlTag;
   }
 }
