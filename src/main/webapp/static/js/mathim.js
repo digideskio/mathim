@@ -39,16 +39,7 @@ function texify(tex)
     return "";
   } else {
     // escape single quotes with slash since embedding it into html
-    var tex2 = tex.replace(/'/g,'&#39;');
-    
-    var texImgUri = tex2.replace(/\s+/g, " ");
-    
-    var imgTag = "<img src='http://render.mathim.com/" + encodeURI(texImgUri) + 
-                 "' alt='" + tex2 + "' title='" + tex2 + 
-                 "' class='tex' />";
-    var linkTag = 
-      "<a href='http://mathim.com/q/#" + encodeURI(tex2) + "'>" +
-      imgTag + "</a>";
-    return linkTag;
+    var mathmlTag = '<script type="math/tex">' + tex + '</script>'
+    return mathmlTag;
   }
 }
