@@ -44,7 +44,7 @@ function texify(tex)
     var texImgUri = tex2.replace(/\s+/g, " ");
     
     var imgTag = "<img src='http://render.mathim.com/" + encodeURI(texImgUri) + 
-                 "' alt='" + tex2 + "' title='" + tex2 + 
+                 "' alt='$" + tex2 + "$' title='" + tex2 + 
                  "' class='tex' />";
     var linkTag = 
       "<a href='http://mathim.com/q/#" + encodeURI(tex2) + "'>" +
