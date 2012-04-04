@@ -1,11 +1,3 @@
-# building
-target
-build
-null
-tmp*
-dist
-test-output
-
 # sbt
 target
 lib_managed
