@@ -15,6 +15,7 @@ function setChannelName(cN) {
   $('#channelName').text(cN);
 }
 
+var playSounds = true;
 function addToLog(html, prepend) {
   if(prepend) {
     $('#chatLog').prepend(html);
@@ -24,7 +25,7 @@ function addToLog(html, prepend) {
   
   $('#chatLog').scrollTop($('#chatLog')[0].scrollHeight);
   
-  if(soundManager && soundManager.ok()) {
+  if(playSounds && soundManager && soundManager.ok()) {
     soundManager.play('notify');
   }
 }
@@ -56,6 +57,10 @@ function chatMessage(timestamp, nick, message, prepend) {
 }
 
 function initializeTopButtons() {
+  $('#btnSound').click(function() {
+    playSounds = !playSounds;
+  });
+  
   $('#btnTimestamps').click(function() {
     $('.timestamp').toggle();
     timestampHidden = !timestampHidden;

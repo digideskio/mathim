@@ -1,2 +1,0 @@
-mathim-texbar.js
-

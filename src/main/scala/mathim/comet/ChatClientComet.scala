@@ -17,9 +17,19 @@ import net.liftweb.common.{Box, Full, Loggable}
 import scala.xml._
 import scala.util.Random
 
+import java.util.Date
+
 import mathim.lib._
 
 object KeepAlive
+
+object ChatLimits {
+  val maxCharsPerSecond = 1024
+  val maxStoredAllowance = 5*1024
+  val minCostPerMessage = 512
+  val warnKickPoint = -5*1024
+  val kickPoint = -10*1024
+}
 
 class ChatClientComet extends CometActor with Loggable {
   val channelName = S.param("channelName").get
@@ -31,9 +41,28 @@ class ChatClientComet extends CometActor with Loggable {
   override def lifespan = Full(20 seconds)
   
   def keepAliveInterval = 6000L
-  
+
+  var lastMessageTime: Long = 0 // Init to UNIX epoch
+  var charAllowance: Long  = ChatLimits.maxStoredAllowance
+
+  def RateLimitingOk(msgString: String) = {
+    val now = (new Date()).getTime()
+
+    val allowanceGained = 
+      (now - lastMessageTime) * ChatLimits.maxCharsPerSecond / 1000
+
+    charAllowance = 
+      math.min(ChatLimits.maxStoredAllowance, charAllowance + allowanceGained)
+
+    lastMessageTime = now
+
+    charAllowance -= math.max(ChatLimits.minCostPerMessage, msgString.length)
+
+    charAllowance > 0
+  }
+
   ActorPing.schedule(this, KeepAlive, keepAliveInterval)
-  
+
   override def localSetup() = {
     server ! Subscribe(this, channelName)
   }
@@ -66,7 +95,6 @@ class ChatClientComet extends CometActor with Loggable {
         <p class='message'>{n}</p>).toSeq))
     }
     case message: Message => {
-      logger.info("Message received")
       partialUpdate(jsCall(message))
     }
     case KeepAlive => {
@@ -103,8 +131,21 @@ class ChatClientComet extends CometActor with Loggable {
     S.runTemplate("templates-hidden" :: "chatCompose" :: Nil, 
       "composetextarea" -> {
         SHtml.onSubmit(msg => {
-          logger.debug("Comet sent message " + msg)
-          server ! ChatMessage(channelName, nickOpt.get, msg)
+          if(RateLimitingOk(msg))
+            server ! ChatMessage(channelName, nickOpt.get, msg)
+          else {
+            val warningMsg = 
+              "Rate limit exceeded. %d characters in debt."
+                .format(-charAllowance)
+            this ! SysMessage(warningMsg)
+
+            if(charAllowance < ChatLimits.warnKickPoint) {
+              this ! SysMessage("Kicking soon.")
+            }
+            if(charAllowance < ChatLimits.kickPoint) {
+              this ! ShutDown
+            }
+          }
         })
       }
     ) match {
