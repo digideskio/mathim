@@ -54,6 +54,7 @@ function chatMessage(timestamp, nick, message, prepend) {
              "&lt;" + nick + "&gt; " + mathedMsg + "</p>\n";
   
   addToLog(html, prepend);
+  MathJax.Hub.Update();
 }
 
 function initializeTopButtons() {
@@ -88,6 +89,7 @@ function initializeChatInput() {
     if(e.which == DOM_VK_RETURN && !e.shiftKey) {
       if($('#composeTextarea').val() != "") {
         $('#composeSubmitBtn').click();
+		MathJax.Hub.Update();
       }
       return false;
     }
@@ -95,6 +97,7 @@ function initializeChatInput() {
   
   $('#composeSubmitBtn').click(function() {
     setTimeout("$('#composeTextarea').val('').focus();", 10);
+    MathJax.Hub.Update();
   });
   
   function updatePreview() {
@@ -103,6 +106,7 @@ function initializeChatInput() {
   
   $('#composeTextarea').keyup(function(e) {
     updatePreview();
+    MathJax.Hub.Update();
   }).keyup(); // trigger to move input text over
   
   //$('#composeTextarea').focus().select();

@@ -42,6 +42,8 @@ class ChatClientComet extends CometActor with Loggable {
   
   def keepAliveInterval = 6000L
 
+  LAPinger.schedule(this, KeepAlive, keepAliveInterval)
+  
   var lastMessageTime: Long = 0 // Init to UNIX epoch
   var charAllowance: Long  = ChatLimits.maxStoredAllowance
 
@@ -61,7 +63,6 @@ class ChatClientComet extends CometActor with Loggable {
     charAllowance > 0
   }
 
-  ActorPing.schedule(this, KeepAlive, keepAliveInterval)
 
   override def localSetup() = {
     server ! Subscribe(this, channelName)
@@ -98,7 +99,7 @@ class ChatClientComet extends CometActor with Loggable {
       partialUpdate(jsCall(message))
     }
     case KeepAlive => {
-      ActorPing.schedule(this, KeepAlive, keepAliveInterval);
+      LAPinger.schedule(this, KeepAlive, keepAliveInterval);
       partialUpdate(JsCmds.Noop)
     } 
     case x => 
