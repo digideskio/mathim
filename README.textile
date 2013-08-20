@@ -4,12 +4,23 @@ h2. License
 
 Licensed under AGPL 3. See LICENSE.txt for details.
 
+h2. Development info
+
+This uses Lift 2.4, so consult their directions. http://liftweb.net/.
+
 h2. Building
 
-Build with sbt 0.7.7 here:
-http://code.google.com/p/simple-build-tool/
+Build with sbt, available here: http://www.scala-sbt.org/. Tested with sbt 0.12.4.
 
-Note that this is the deprecated sbt rather than the new xsbt 0.10 series.
+To compile, use "compile" at the sbt prompt.
+
+To run the app, use "~container:start". Navigate your browser to http://localhost:8080.
+
+To build a WAR for deployment, use the "package" task. Deploy the WAR using jetty or another Java servlet container.
+
+h2. Logging
+
+Chats are logged to /var/log/mathim directory. So make that directory writable by the servlet container, and you will get logging.
 
 h2. LaTeX rendering
 
