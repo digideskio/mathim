@@ -1,4 +1,6 @@
 # sbt
+.classpath
+.project
 target
 lib_managed
 src_managed
