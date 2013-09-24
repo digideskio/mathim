@@ -24,8 +24,6 @@ class Channel(val name: String) {
   
   var nicks : Vector[String] = Vector.empty
   
-  
-  
   def writeLogFile() = if(!log.isEmpty) {
     val logStrings = log.map(_.toString)
     val logName = "%s - %s".format(name, log.head.timestampLong)
@@ -109,6 +107,10 @@ object ChatServer extends LiftActor with Loggable{
       chan.log = chan.log :+ message
       chan.listeners.map(_ ! message)
     }
+    case isTyping: IsTypingMessage => {
+      val chan = getChannel(isTyping.channelName)
+      chan.listeners.map(_ ! isTyping)
+    }
   }
 }
 
@@ -132,7 +134,9 @@ object Message {
   val shortFormat = new java.text.SimpleDateFormat("HH:mm:ss")
   val longFormat = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss z")
 }
-                       
+
+case class IsTypingMessage(channelName: String, nick: String)
+
 case class ChatMessage(
   channelName: String, nick: String, message: String, 
   timestamp: Date = new Date()) 

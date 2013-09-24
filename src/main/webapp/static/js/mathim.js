@@ -24,7 +24,7 @@ function mathFilter(msg)
       newmsg = newmsg + msgary[i];
     }
     else
-    {             
+    {
       newmsg = newmsg + texify(msgary[i]);
     }
   }
