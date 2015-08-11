@@ -32,29 +32,29 @@ object ChatLimits {
 
 class ChatClientComet extends CometActor with Loggable {
   val channelName = S.param("channelName").get
-  
+
   val server = ChatServer
-  
+
   var nickOpt : Option[String] = None
-  
+
   override def lifespan = Full(20 seconds)
-  
+
   def keepAliveInterval = 6000L
 
   LAPinger.schedule(this, KeepAlive, keepAliveInterval)
-  
+
   var lastMessageTime: Long = 0 // Init to UNIX epoch
   var charAllowance: Long  = ChatLimits.maxStoredAllowance
-  
+
   override def autoIncludeJsonCode = true
 
   def RateLimitingOk(size: Int) = {
     val now = (new Date()).getTime()
 
-    val allowanceGained = 
+    val allowanceGained =
       (now - lastMessageTime) * ChatLimits.maxCharsPerSecond / 1000
 
-    charAllowance = 
+    charAllowance =
       math.min(ChatLimits.maxStoredAllowance, charAllowance + allowanceGained)
 
     lastMessageTime = now
@@ -68,12 +68,12 @@ class ChatClientComet extends CometActor with Loggable {
   override def localSetup() = {
     server ! Subscribe(this, channelName)
   }
-  
-  override def localShutdown() = { 
+
+  override def localShutdown() = {
     logger.info("localShutdown")
     server ! Unsubscribe(this, channelName, nickOpt)
   }
-  
+
   override def lowPriority = {
     case NickTaken(nick) => {
       this.error("chatError", "Nick '" + nick + "' taken. Choose another.")
@@ -87,13 +87,13 @@ class ChatClientComet extends CometActor with Loggable {
     case ChannelLog(log) => {
       logger.info("ChannelLog received")
       if(!log.isEmpty)
-        partialUpdate(log.reverse.map(m => jsCall(m, true)).reduceLeft(_+_))
+        partialUpdate(log.reverse.map(m => jsCall(m, true)).reduceLeft(_ & _))
       else
         Noop
     }
     case ChannelNicks(nicks) => {
       logger.info("ChannelNicks received")
-      partialUpdate(SetHtml("chatUserlist", nicks.map(n => 
+      partialUpdate(SetHtml("chatUserlist", nicks.map(n =>
         <p class='message'>{n}</p>).toSeq))
     }
     case message: Message => {
@@ -107,44 +107,44 @@ class ChatClientComet extends CometActor with Loggable {
     case KeepAlive => {
       LAPinger.schedule(this, KeepAlive, keepAliveInterval);
       partialUpdate(JsCmds.Noop)
-    } 
-    case x => 
+    }
+    case x =>
       logger.error("StarGameComet unknown message: %s".format(x.toString))
   }
-  
-  def jsCall(message: Any, prepend: Boolean = false) : JsExp = { 
+
+  def jsCall(message: Any, prepend: Boolean = false) : JsCmd = {
     message match {
-      case msg: ChatMessage => 
-        Call("chatMessage", msg.timestampShort, msg.nick, msg.message, prepend) 
+      case msg: ChatMessage =>
+        Call("chatMessage", msg.timestampShort, msg.nick, msg.message, prepend).cmd
       case msg: SysMessage =>
-        Call("sysMessage", msg.timestampShort, msg.message, prepend)
+        Call("sysMessage", msg.timestampShort, msg.message, prepend).cmd
       case msg: IsTypingMessage =>
-        Call("isTypingMessage", msg.nick)
+        Call("isTypingMessage", msg.nick).cmd
     }
   }
-  
+
   def showPanes(panes: List[String]) = {
-    val cmd = "$('.pane').hide();" :: panes.map("$('#" + _ + "').show();") 
-    OnLoad(JsRaw(cmd.mkString("\n")))
+    val cmd = "$('.pane').hide();" :: panes.map("$('#" + _ + "').show();")
+    OnLoad(JsRaw(cmd.mkString("\n")).cmd)
   }
-  
+
   def render = {
     if(nickOpt.isDefined) {
       setJsonCalls & renderCompose & showPanes("chatInputCompose" :: Nil)
     } else {
       renderAskName & showPanes("chatInputAskName" :: Nil)
-    } & Call("setChannelName", channelName)
+    } & Call("setChannelName", channelName).cmd
   }
-  
+
   def setJsonCalls = {
     JsRaw("function sendIsTyping() {" +
       jsonSend("IsTyping", JsRaw("1")).toJsCmd +
-    "}")
+    "}").cmd
   }
-  
+
   override def receiveJson = {
     //case x if {println("Got Json: "+x); false} => Noop
-    case JObject(List(JField("command", JString("IsTyping")), 
+    case JObject(List(JField("command", JString("IsTyping")),
                       JField("params", _))) => {
       if (RateLimitingOk(ChatLimits.onTypingCost)) {
         server ! IsTypingMessage(channelName, nickOpt.get)
@@ -154,13 +154,13 @@ class ChatClientComet extends CometActor with Loggable {
       Noop
     }
   }
-  
+
   def rateLimitWarn() = {
-	val warningMsg = 
+	val warningMsg =
 	  "Rate limit exceeded. %d characters in debt."
 	    .format(-charAllowance)
 	this ! SysMessage(warningMsg)
-	
+
 	if(charAllowance < ChatLimits.warnKickPoint) {
 	  this ! SysMessage("Kicking soon.")
 	}
@@ -169,15 +169,15 @@ class ChatClientComet extends CometActor with Loggable {
       this ! ShutDown
     }
   }
-   
-  def renderCompose = OnLoad(SetHtml("chatInputCompose", 
-    S.runTemplate("templates-hidden" :: "chatCompose" :: Nil, 
+
+  def renderCompose = OnLoad(SetHtml("chatInputCompose",
+    S.runTemplate("templates-hidden" :: "chatCompose" :: Nil,
       "composetextarea" -> {
         SHtml.onSubmit(msg => {
           val cost = math.max(ChatLimits.minCostPerMessage, msg.length)
           if (RateLimitingOk(cost))
             server ! ChatMessage(channelName, nickOpt.get, msg)
-          else 
+          else
             rateLimitWarn()
         })
       }
@@ -185,26 +185,25 @@ class ChatClientComet extends CometActor with Loggable {
       case Full(x) => x
       case _ => <p>Problem rendering compose</p>
     }
-  ) & Call("initializeChatInput"))
-  
+  ) & Call("initializeChatInput").cmd)
+
   def renderAskName = OnLoad(SetHtml("chatInputAskName", nickOpt match {
     case Some(name) => <p>Nick registered</p>
-    case x => {      
+    case x => {
       def processNick(nick: String) = {
         server ! RequestNick(this, channelName, nick)
         Noop
       }
-      
+
       ajaxForm(
         <div>
           Choose a nickname
           <br/>
           {text("", processNick, "class"->"askNameTextField")}
-          {ajaxSubmit("Join", () => Noop)} 
+          {ajaxSubmit("Join", () => Noop)}
         </div>
       )
     }
-  }) & JsRaw("$('.askNameTextField').focus();"))
-  
-}
+  }) & JsRaw("$('.askNameTextField').focus();").cmd)
 
+}
