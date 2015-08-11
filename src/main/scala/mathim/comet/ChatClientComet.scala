@@ -64,6 +64,8 @@ class ChatClientComet extends CometActor with Loggable {
     charAllowance > 0
   }
 
+  def filterHtml(value: String) =
+    value.replaceAll("""<(?!\/?a(?=>|\s.*>))\/?.*?>""", "")
 
   override def localSetup() = {
     server ! Subscribe(this, channelName)
@@ -176,7 +178,7 @@ class ChatClientComet extends CometActor with Loggable {
         SHtml.onSubmit(msg => {
           val cost = math.max(ChatLimits.minCostPerMessage, msg.length)
           if (RateLimitingOk(cost))
-            server ! ChatMessage(channelName, nickOpt.get, msg)
+            server ! ChatMessage(channelName, nickOpt.get, filterHtml(msg))
           else
             rateLimitWarn()
         })
@@ -191,7 +193,7 @@ class ChatClientComet extends CometActor with Loggable {
     case Some(name) => <p>Nick registered</p>
     case x => {
       def processNick(nick: String) = {
-        server ! RequestNick(this, channelName, nick)
+        server ! RequestNick(this, channelName, filterHtml(nick))
         Noop
       }
 

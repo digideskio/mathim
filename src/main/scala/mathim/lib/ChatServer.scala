@@ -21,15 +21,15 @@ import collection.immutable.HashMap
 class Channel(val name: String) {
   var log : Vector[Message] = Vector.empty
   var listeners: Set[SimpleActor[Any]] = Set.empty
-  
+
   var nicks : Vector[String] = Vector.empty
-  
+
   def writeLogFile() = if(!log.isEmpty) {
     val logStrings = log.map(_.toString)
     val logName = "%s - %s".format(name, log.head.timestampLong)
-    
+
     val filePath = "/var/log/mathim/chats.log"
-    
+
     try {
       val out = new BufferedWriter(new FileWriter(filePath, true));
       out.write("---\n")
@@ -46,7 +46,7 @@ class Channel(val name: String) {
 
 object ChatServer extends LiftActor with Loggable{
   var channels: HashMap[String, Channel] = new HashMap()
-  
+
   def getChannel(channelName: String) = channels.get(channelName) match {
     case Some(channel) => channel
     case _ => {
@@ -56,7 +56,7 @@ object ChatServer extends LiftActor with Loggable{
       newChan
     }
   }
-  
+
   override def messageHandler = {
     case Subscribe(listener, channelName) => {
       val chan = getChannel(channelName)
@@ -66,9 +66,9 @@ object ChatServer extends LiftActor with Loggable{
     }
     case Unsubscribe(listener, channelName, nickOpt) => {
       val chan = getChannel(channelName)
-      
+
       chan.listeners = chan.listeners - listener
-      
+
       nickOpt match {
         case Some(nick) if(chan.nicks.contains(nick)) => {
           chan.nicks = chan.nicks.filter(_ != nick)
@@ -79,7 +79,7 @@ object ChatServer extends LiftActor with Loggable{
         }
         case _ => None
       }
-      
+
       if(chan.listeners.isEmpty) {
         logger.debug("Channel " + channelName + " destroyed.")
         chan.writeLogFile()
@@ -88,13 +88,13 @@ object ChatServer extends LiftActor with Loggable{
     }
     case RequestNick(listener, channelName, nick) => {
       val chan = getChannel(channelName)
-      
+
       if(chan.nicks contains nick) {
         listener ! NickTaken(nick)
       } else {
         chan.nicks = chan.nicks :+ nick
         listener ! NickAssignment(nick)
-        
+
         // announce new member
         val joinMsg = SysMessage(nick + " has joined the channel.")
         chan.log = chan.log :+ joinMsg
@@ -115,17 +115,17 @@ object ChatServer extends LiftActor with Loggable{
 }
 
 case class Subscribe(listener: SimpleActor[Any], channelName: String)
-case class Unsubscribe(listener: SimpleActor[Any], channelName: String, 
+case class Unsubscribe(listener: SimpleActor[Any], channelName: String,
                        nickOpt: Option[String])
 
-case class RequestNick(listener: SimpleActor[Any], channelName: String, 
+case class RequestNick(listener: SimpleActor[Any], channelName: String,
                        nick: String)
 
 trait Message {
   val message: String
   val timestamp: Date
   def toString: String
-  
+
   def timestampShort = Message.shortFormat.format(timestamp)
   def timestampLong = Message.longFormat.format(timestamp)
 }
@@ -138,15 +138,15 @@ object Message {
 case class IsTypingMessage(channelName: String, nick: String)
 
 case class ChatMessage(
-  channelName: String, nick: String, message: String, 
-  timestamp: Date = new Date()) 
+  channelName: String, nick: String, message: String,
+  timestamp: Date = new Date())
   extends Message
 {
   override def toString = "%s <%s> %s".format(timestampLong, nick, message)
 }
 
 case class SysMessage(
-  message: String, timestamp: Date = new Date()) 
+  message: String, timestamp: Date = new Date())
   extends Message
 {
   override def toString = "%s * %s".format(timestampLong, message)
